@@ -106,13 +106,43 @@ def ModelEvaluation(model, X, y):
     cv_scores = cross_val_score(model, X, y, cv=5)
     print("Cross-Validation Scores: ", cv_scores)
     print("Mean Score: ", cv_scores.mean())
+def Load_New_Data(X, model):
+    new_data = pd.read_csv('new_customers.csv')
+
+    # Apply the same preprocessing steps as before
+    new_data['Onboard_date'] = pd.to_datetime(new_data['Onboard_date'])
+    new_data['Days_since_onboard'] = (pd.to_datetime('today') - new_data['Onboard_date']).dt.days
+    #new_data = new_data.drop(columns=['Name', 'Company', 'Location'])
+    new_data = new_data.drop(columns=['Names', 'Company', 'Location', 'Onboard_date'])
+    new_data['Ads_per_year'] = new_data['Total_Purchase'] / new_data['Years']
+    scaler = StandardScaler()
+    new_data[['Age', 'Total_Purchase', 'Years', 'Num_sites', 'Days_since_onboard', 'Ads_per_year']] = scaler.fit_transform(new_data[['Age', 'Total_Purchase', 'Years', 'Num_Sites', 'Days_since_onboard', 'Ads_per_year']])
+
+    #new_data[['Age', 'Total_Purchase', 'Years', 'Num_sites', 'Days_since_onboard', 'Ads_per_year']] = scaler.transform(new_data[['Age', 'Total_Purchase', 'Years', 'Num_sites', 'Days_since_onboard', 'Ads_per_year']])
+    new_data['Churn_Prediction'] = model.predict(new_data)
+    new_data.to_csv('new_customers_predictions.csv', index=False)
+    # Assuming `scaler` is the StandardScaler object used earlier
+    # Select the features you normalized
+    features_to_inverse = ['Age', 'Total_Purchase', 'Years', 'Num_Sites', 'Days_since_onboard', 'Ads_per_year']
+
+    # Inverse transform the features
+    new_data[features_to_inverse] = scaler.inverse_transform(new_data[features_to_inverse])
+    new_data.to_csv('new_customers_predictions_real_values.csv', index=False)
+    # Now the new_data DataFrame should have the original values for these features
+
+    feature_importances = model.feature_importances_
+    
+    features = X.columns
+    sns.barplot(x=feature_importances, y=features)
+    plt.title('Feature Importances')
+    plt.show()
 
 def main():
 
     df= loading_Data()
     df=Data_Preprocessing(df)
     #Step 3: Exploratory Data Analysis (EDA)
-    #EDA_fun(df)
+    EDA_fun(df)
     """
     Split the Data
     Separate the dataset into features (X) and target (y) variables,
@@ -132,8 +162,6 @@ def main():
     """
     ModelEvaluation(model, X, y)
 
-    
-
     param_grid = {
         'n_estimators': [50, 100, 200],
         'max_depth': [None, 10, 20, 30]
@@ -144,6 +172,6 @@ def main():
 
     print("Best Parameters: ", grid_search.best_params_)
 
-
+    Load_New_Data(X, model)
 if __name__=="__main__":
     main()
